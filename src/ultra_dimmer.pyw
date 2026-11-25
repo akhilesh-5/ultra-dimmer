@@ -22,6 +22,8 @@ from dimmer_engine import (  # noqa: E402
 configure_win32_environment()
 
 APP_TITLE = "Ultra Dimmer"
+MUTEX_NAME = "Local\\UltraDimmerSingleInstanceMutex"
+ERROR_ALREADY_EXISTS = 183
 REPO_ROOT = os.path.dirname(SCRIPT_DIR)
 ICON_PATH = os.path.join(REPO_ROOT, "assets", "ultra_dimmer.ico")
 
@@ -45,14 +47,28 @@ VK_D = 0x44
 VK_0 = 0x30
 
 
+def ensure_single_instance() -> wintypes.HANDLE:
+    """Acquire process mutex; if already running, restore existing window and exit."""
+    mutex = kernel32.CreateMutexW(None, False, MUTEX_NAME)
+    if ctypes.get_last_error() == ERROR_ALREADY_EXISTS:
+        existing_hwnd = user32.FindWindowW(None, APP_TITLE)
+        if existing_hwnd:
+            user32.ShowWindow(existing_hwnd, SW_RESTORE)
+            user32.SetForegroundWindow(existing_hwnd)
+        sys.exit(0)
+    return mutex
+
+
 class UltraDimmerApp:
     """Desktop control window paired with DWM Magnification dimming and global hotkeys."""
 
-    def __init__(self) -> None:
+    def __init__(self, mutex: wintypes.HANDLE) -> None:
+        self._mutex = mutex
         self.dimmer = MagnificationDimmer()
         atexit.register(self.cleanup)
 
-        self.current_brightness = 40
+        # Open at 100% normal brightness so user dims down explicitly as desired
+        self.current_brightness = 100
         self.keep_on_top = False
         self.hotkey_thread_id = None
         self.hotkey_ready = threading.Event()
@@ -345,5 +361,6 @@ class UltraDimmerApp:
 
 
 if __name__ == "__main__":
-    app = UltraDimmerApp()
+    mutex_handle = ensure_single_instance()
+    app = UltraDimmerApp(mutex_handle)
     app.run()
