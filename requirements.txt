@@ -1,0 +1,5 @@
+# Core runtime uses Python 3.10+ standard library (tkinter, ctypes) and built-in Windows DLLs
+# (Magnification.dll, user32.dll, shcore.dll, shell32.dll, kernel32.dll).
+
+# Optional: only needed if regenerating assets/ultra_dimmer.ico via assets/generate_icon.py
+Pillow>=10.0.0
